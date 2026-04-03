@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎈 第二阶段趣味测试 · 快乐识字挑战 🎈</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            margin: 0; overflow: hidden;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6df 100%);
+            font-family: 'KaiTi', '楷体', 'Comic Sans MS', sans-serif;
+            touch-action: none;
+        }
+
+        #ui-board {
+            position: absolute; top: 2vh; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.92); padding: 10px 12px;
+            border-radius: 28px; box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+            text-align: center; z-index: 100; border: 3px solid #81D4FA;
+            width: 92%; max-width: 430px; backdrop-filter: blur(6px);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        
+        .status-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        
+        .ctrl-btn {
+            font-size: 15px; font-weight: bold; padding: 6px 12px; border-radius: 30px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            white-space: nowrap; cursor: pointer;
+            background: #FFF9C4;
+            border: none;
+            transition: transform 0.05s linear;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .ctrl-btn:active { transform: translateY(2px); }
+        
+        .timer-badge { background: #FFE0B2; color: #BF360C; font-family: monospace; font-size: 20px; letter-spacing: 1px; }
+        .score-badge { background: #E8F5E9; color: #2E7D32; }
+        .btn-level { background: #FFF9C4; color: #E65100; box-shadow: 0 3px 0 #FFB300; }
+
+        #target-text { font-size: 20px; color: #5D4037; font-weight: bold; margin: 0; }
+        #target-word { color: #0277BD; font-size: 38px; text-shadow: 2px 2px 0px #B3E5FC; margin-left: 5px; }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 248, 225, 0.94); backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200;
+        }
+        .panel {
+            background: #E1F5FE; padding: 25px 20px; border-radius: 40px; text-align: center;
+            border: 6px solid #81D4FA; box-shadow: 0 10px 0 #4FC3F7, 0 20px 30px rgba(0,0,0,0.2);
+            width: 85%; max-width: 380px;
+        }
+        .panel h1 { color: #0288D1; margin: 0 0 10px 0; font-size: 28px; }
+        
+        .level-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+            max-height: 40vh; overflow-y: auto; padding: 10px;
+            border-radius: 20px; background: rgba(255,250,210,0.8);
+        }
+        .level-grid button {
+            font-size: 12px; padding: 8px 5px; background: #B3E5FC; border: none; border-radius: 20px;
+            box-shadow: 0 4px 0 #4FC3F7; cursor: pointer; font-weight: bold; font-family: 'KaiTi', '楷体';
+        }
+        .level-grid button:active { transform: translateY(4px); box-shadow: none; }
+        
+        .btn-large {
+            font-size: 20px; padding: 12px 20px; margin: 15px auto 0;
+            color: white; background: #29B6F6; border: none; border-radius: 40px;
+            box-shadow: 0 6px 0 #039BE5; cursor: pointer; font-weight: bold; width: 80%;
+        }
+        .btn-large:active { transform: translateY(6px); box-shadow: none; }
+        
+        .bubble {
+            position: absolute; bottom: -150px;
+            width: 90px; height: 90px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; color: #0D47A1;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.9);
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.98) 0%, rgba(200, 230, 255, 0.85) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.15), inset -3px -3px 5px rgba(0,0,0,0.05);
+            cursor: pointer; z-index: 10;
+            animation: floatBubble linear forwards;
+            font-size: 28px;
+        }
+        
+        @keyframes floatBubble {
+            0% { top: 100vh; transform: translateX(0px) scale(1); }
+            100% { top: -20vh; transform: translateX(15px) scale(0.96); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .wrong { animation: shake 0.2s ease-in-out; }
+        
+        .splash {
+            position: absolute; font-size: 26px; pointer-events: none;
+            animation: splashOut 0.5s forwards; z-index: 150;
+        }
+        @keyframes splashOut {
+            0% { transform: translate(0,0) scale(0.5); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+        }
+        
+        .game-title-badge {
+            position: fixed;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0,0,0,0.55);
+            color: #FFD966;
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: bold;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            z-index: 300;
+            font-family: monospace;
+        }
+        .music-toggle {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0,0,0,0.65);
+            color: #FFE484;
+            border-radius: 50px;
+            padding: 6px 12px;
+            font-size: 12px;
+            z-index: 400;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            font-weight: bold;
+            border: 1px solid #ffcd94;
+            font-family: monospace;
+        }
+        .music-toggle:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <div id="ui-board">
+        <div class="status-bar">
+            <div class="ctrl-btn btn-level" onclick="openMenu()">📖 第<span id="level-display">1</span>关 ⚙️</div>
+            <div class="ctrl-btn timer-badge">⏱️ <span id="timer-seconds">60</span>秒</div>
+            <div class="ctrl-btn score-badge">⭐ <span id="score">0</span>/10</div>
+        </div>
+        <div id="target-text">🎯 戳破泡泡：<span id="target-word">?</span></div>
+    </div>
+    <div class="game-title-badge">🎈 第二阶段趣味测试 · 快乐识字 🎈</div>
+    <div class="music-toggle" id="musicToggleBtn">🎵 背景音乐 开/关</div>
+
+    <!-- 主菜单/选关界面 -->
+    <div id="start-screen" class="overlay">
+        <div class="panel">
+            <h1>🎈 第二阶段趣味测试 🎈</h1>
+            <p style="font-size:16px; color:#01579b;">📖 第二级生字 · 快乐识字 📖</p>
+            <p style="font-size:14px; color:#E65100;">⏰ 每关60秒 · 戳对10个泡泡过关！✨ 关卡越高，泡泡出现越快 ✨</p>
+            <div class="level-grid" id="level-grid-container"></div>
+            <button id="resume-btn" class="btn-large" style="background:#FFB74D; box-shadow:0 6px 0 #F57C00; display:none;" onclick="resumeGame()">🔙 返回测试</button>
+        </div>
+    </div>
+
+    <!-- 过关界面 -->
+    <div id="level-up-screen" class="overlay" style="display: none;">
+        <div class="panel">
+            <h1 style="font-size: 44px;">🎉 太棒啦！ 🎉</h1>
+            <h2 style="color: #0277BD;">宝宝通过了第 <span id="finished-level">1</span> 关测试！</h2>
+            <button class="btn-large" onclick="nextLevelConfirmed()">继续第 <span id="next-level-display">2</span> 关 🫧</button>
+            <button class="btn-large" style="background:#FFA726; margin-top:12px;" onclick="openMenu()">📚 选其他关卡</button>
+        </div>
+    </div>
+    
+    <!-- 失败界面 -->
+    <div id="fail-screen" class="overlay" style="display: none;">
+        <div class="panel">
+            <h1 style="color:#E65100;">⏰ 时间到啦 ~</h1>
+            <p style="font-size:18px;">再试一次，你能行！✨</p>
+            <button class="btn-large" onclick="restartCurrentLevel()">🔄 重来本关</button>
+            <button class="btn-large" style="background:#FFA726; margin-top:12px;" onclick="openMenu()">📖 返回选关</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 第二阶段字库 (完整替换为第二级字词)
+        // ==========================================
+        const secondLevelWords = [
+            '爸', '妹', '姐', '爷', '奶', '弟', '哥', '叔', '去', '哪', '找', '和',
+            '丁', '住', '定', '拿', '被', '神', '蚊', '叮', '盯', '订', '钉', '顶', '鼎', '回家',
+            '八', '风', '雨', '石', '田', '再', '百', '吧', '听', '说', '还', '背', '岛', '遍', '水牛', '火车',
+            '门', '它', '巾', '正', '今', '是', '巴', '象', '路', '蛇', '初', '戴', '新年', '散步', '送给',
+            '弓', '拉', '所', '耍', '读', '猫', '都', '酷', '舞', '甲虫', '问题', '喜欢', '洗澡', '放屁', '弹珠', '冰激凌',
+            '地', '面', '就', '高', '把', '得', '真', '做', '举', '床', '站', '时间', '早餐', '干净', '鸡蛋', '父亲节',
+            '又', '树', '那', '从', '处', '短', '伸', '捉', '中午', '什么', '声音', '这边', '踪迹', '知道',
+            '遇', '鹿', '群', '鸟', '兔', '匹', '鸭', '羊', '狮', '砰', '白马', '蚂蚁', '打伞', '灰狼', '开始',
+            '坏', '口', '爱', '进', '点', '办', '井', '师', '怎', '咕咚', '青蛙',
+            '绿', '草', '些', '许', '扔', '香', '动', '乱', '吓', '花园', '禾苗', '折断', '照相', '最美', '当选'
+        ];
+        
+        // 去重并保留所有第二级词汇
+        const uniqueWords = [...new Map(secondLevelWords.map(w => [w, w])).values()];
+        
+        const TOTAL_LEVELS = 12;   // 12关
+        const POINTS_TO_PASS = 10;   // 每关需要戳对10个字
+        const LEVEL_TIME_LIMIT = 60;  // 每关60秒
+
+        let currentTarget = "";
+        let currentScore = 0;
+        let currentLevel = 1;
+        let spawnInterval = null;
+        let isGameActive = false;
+        let timerInterval = null;
+        let timeLeft = LEVEL_TIME_LIMIT;
+        
+        // 音乐相关全局
+        let bgmSchedulerActive = false;
+        let nextNoteTime = 0;
+        let currentNoteIndex = 0;
+        let scheduleInterval = null;
+        let isBgmPlaying = false;
+        let audioCtx = null;
+        
+        // DOM 元素
+        const startScreen = document.getElementById('start-screen');
+        const levelUpScreen = document.getElementById('level-up-screen');
+        const failScreen = document.getElementById('fail-screen');
+        const targetWordEl = document.getElementById('target-word');
+        const scoreEl = document.getElementById('score');
+        const levelDisplayEl = document.getElementById('level-display');
+        const timerSecondsSpan = document.getElementById('timer-seconds');
+        const resumeBtn = document.getElementById('resume-btn');
+        const nextLevelSpan = document.getElementById('next-level-display');
+        const musicToggleBtn = document.getElementById('musicToggleBtn');
+
+        // ========== 活泼欢快背景音乐系统 (合成器节奏+丰富旋律) ==========
+        const tempo = 132; // BPM 欢快
+        const secondsPerBeat = 60.0 / tempo;
+        // 欢快跳跃的主旋律 (C大调+跳跃音程)
+        const melodyNotes = [
+            523.25, 659.25, 587.33, 523.25,  // C5 E5 D5 C5
+            659.25, 783.99, 698.46, 659.25,  // E5 G5 F5 E5
+            587.33, 659.25, 523.25, 783.99,  // D5 E5 C5 G5
+            880.00, 783.99, 698.46, 659.25,  // A5 G5 F5 E5
+            523.25, 587.33, 698.46, 783.99,  // C5 D5 F5 G5
+            1046.50, 880.00, 783.99, 659.25  // C6 A5 G5 E5
+        ];
+        // 和声音符 丰富层次
+        const harmonyNotes = [
+            392.00, 493.88, 440.00, 392.00,
+            493.88, 587.33, 523.25, 493.88,
+            440.00, 493.88, 392.00, 587.33,
+            659.25, 587.33, 523.25, 493.88,
+            392.00, 440.00, 523.25, 587.33,
+            784.00, 659.25, 587.33, 523.25
+        ];
+        // 贝斯节奏
+        const bassNotes = [
+            130.81, 164.81, 146.83, 130.81,
+            164.81, 196.00, 174.61, 164.81,
+            146.83, 164.81, 130.81, 196.00,
+            220.00, 196.00, 174.61, 164.81,
+            130.81, 146.83, 174.61, 196.00,
+            261.63, 220.00, 196.00, 174.61
+        ];
+        
+        function scheduleNote() {
+            if (!bgmSchedulerActive || !audioCtx || audioCtx.state !== 'running') return;
+            const now = audioCtx.currentTime;
+            const startTime = nextNoteTime;
+            if (startTime < now) {
+                nextNoteTime = now + 0.01;
+                scheduleNote();
+                return;
+            }
+            const idx = currentNoteIndex % melodyNotes.length;
+            const melodyFreq = melodyNotes[idx];
+            const harmonyFreq = harmonyNotes[idx];
+            const bassFreq = bassNotes[idx];
+            
+            // 主旋律 (亮色)
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.type = 'triangle';
+            osc1.frequency.value = melodyFreq;
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            gain1.gain.setValueAtTime(0.28, startTime);
+            gain1.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.3);
+            osc1.start(startTime);
+            osc1.stop(startTime + 0.3);
+            
+            // 和声层
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.value = harmonyFreq;
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            gain2.gain.setValueAtTime(0.2, startTime);
+            gain2.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
+            osc2.start(startTime);
+            osc2.stop(startTime + 0.35);
+            
+            // 贝斯律动
+            const osc3 = audioCtx.createOscillator();
+            const gain3 = audioCtx.createGain();
+            osc3.type = 'sawtooth';
+            osc3.frequency.value = bassFreq;
+            osc3.connect(gain3);
+            gain3.connect(audioCtx.destination);
+            gain3.gain.setValueAtTime(0.16, startTime);
+            gain3.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.24);
+            osc3.start(startTime);
+            osc3.stop(startTime + 0.24);
+            
+            // 小打击乐 铃铛感
+            const bellOsc = audioCtx.createOscillator();
+            const bellGain = audioCtx.createGain();
+            bellOsc.type = 'sine';
+            bellOsc.frequency.value = 2800;
+            bellOsc.connect(bellGain);
+            bellGain.connect(audioCtx.destination);
+            bellGain.gain.setValueAtTime(0.1, startTime);
+            bellGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06);
+            bellOsc.start(startTime);
+            bellOsc.stop(startTime + 0.06);
+            
+            // 清脆节拍点缀
+            if (currentNoteIndex % 2 === 0) {
+                const perc = audioCtx.createOscillator();
+                const percGain = audioCtx.createGain();
+                perc.type = 'square';
+                perc.frequency.value = 1200;
+                perc.connect(percGain);
+                percGain.connect(audioCtx.destination);
+                percGain.gain.setValueAtTime(0.12, startTime);
+                percGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05);
+                perc.start(startTime);
+                perc.stop(startTime + 0.05);
+            }
+            
+            // 下一个音符 (半拍一个音符，节奏明快)
+            nextNoteTime += secondsPerBeat / 2;
+            currentNoteIndex++;
+            if (currentNoteIndex >= 96) currentNoteIndex = 0;
+            
+            const timeUntilNext = nextNoteTime - audioCtx.currentTime;
+            if (scheduleInterval) clearTimeout(scheduleInterval);
+            scheduleInterval = setTimeout(() => scheduleNote(), Math.max(0, timeUntilNext * 1000 - 3));
+        }
+        
+        function startBackgroundMusic() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) { return; }
+            }
+            if (bgmSchedulerActive) return;
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => startMusicScheduler());
+            } else {
+                startMusicScheduler();
+            }
+        }
+        
+        function startMusicScheduler() {
+            if (bgmSchedulerActive) return;
+            bgmSchedulerActive = true;
+            nextNoteTime = audioCtx.currentTime + 0.05;
+            currentNoteIndex = 0;
+            scheduleNote();
+            isBgmPlaying = true;
+        }
+        
+        function stopBackgroundMusic() {
+            if (scheduleInterval) {
+                clearTimeout(scheduleInterval);
+                scheduleInterval = null;
+            }
+            bgmSchedulerActive = false;
+            isBgmPlaying = false;
+        }
+        
+        function toggleMusic() {
+            if (!audioCtx) {
+                initAudioForAll();
+                return;
+            }
+            if (bgmSchedulerActive) {
+                stopBackgroundMusic();
+                localStorage.setItem('bgmManuallyOff', 'true');
+            } else {
+                localStorage.removeItem('bgmManuallyOff');
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                startBackgroundMusic();
+            }
+        }
+        
+        // 音效系统
+        function initAudioForAll() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) { console.log("Audio not supported"); }
+            }
+        }
+        
+        function playPopSound() {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1150, now);
+            osc.frequency.exponentialRampToValueAtTime(480, now + 0.07);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.48, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+            osc.start(now);
+            osc.stop(now + 0.11);
+        }
+        
+        function playPraiseSound() {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const now = audioCtx.currentTime;
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(0.32, now + idx * 0.09);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.38);
+                osc.start(now + idx * 0.09);
+                osc.stop(now + idx * 0.09 + 0.35);
+            });
+            const bell = audioCtx.createOscillator();
+            const bellGain = audioCtx.createGain();
+            bell.type = 'sine';
+            bell.frequency.value = 1568;
+            bell.connect(bellGain);
+            bellGain.connect(audioCtx.destination);
+            bellGain.gain.setValueAtTime(0.2, now + 0.22);
+            bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+            bell.start(now + 0.22);
+            bell.stop(now + 0.58);
+        }
+        
+        function playMagicSound() {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const notes2 = [523, 659, 784, 1047, 1318];
+            notes2.forEach((freq, idx) => {
+                setTimeout(() => {
+                    if(!audioCtx || audioCtx.state !== 'running') return;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.45);
+                }, idx * 100);
+            });
+        }
+        
+        function ensureAudioContext() {
+            initAudioForAll();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            if (!bgmSchedulerActive && !localStorage.getItem('bgmManuallyOff') && isGameActive) {
+                startBackgroundMusic();
+            }
+        }
+        
+        // 获取关卡配置: 泡泡生成速度随关卡增加越来越快 (第1关约2秒一个，第12关约0.65秒)
+        function getLevelConfig(level) {
+            let spawnRate = Math.max(650, 2120 - (level - 1) * 135);
+            let speedMin = Math.max(1.8, 5.2 - (level - 1) * 0.32);
+            let speedMax = Math.max(3.0, 7.8 - (level - 1) * 0.42);
+            return { speedMin, speedMax, spawnRate };
+        }
+        
+        function stopGameLoop() {
+            if (spawnInterval) { clearInterval(spawnInterval); spawnInterval = null; }
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        }
+        
+        function clearAllBubbles() { document.querySelectorAll('.bubble').forEach(b => b.remove()); }
+        
+        function pickNewTarget() {
+            currentTarget = uniqueWords[Math.floor(Math.random() * uniqueWords.length)];
+            targetWordEl.innerText = currentTarget;
+            speakWord(currentTarget);
+        }
+        
+        function speakWord(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance("找一找：" + text);
+                utterance.lang = 'zh-CN';
+                utterance.rate = 0.85;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        
+        function speakCheer() {
+            if ('speechSynthesis' in window) {
+                const cheers = ["太棒啦！", "好厉害！", "继续加油！", "真聪明！", "了不起！"];
+                const cheerText = cheers[Math.floor(Math.random() * cheers.length)];
+                const utterance = new SpeechSynthesisUtterance(cheerText);
+                utterance.lang = 'zh-CN';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        
+        function createBubble() {
+            if (!isGameActive) return;
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            let showTarget = (Math.random() > 0.42);
+            let wordToShow = showTarget ? currentTarget : uniqueWords[Math.floor(Math.random() * uniqueWords.length)];
+            bubble.innerText = wordToShow;
+            if(wordToShow.length >= 4) bubble.style.fontSize = '20px';
+            else if (wordToShow.length === 3) bubble.style.fontSize = '24px';
+            else if (wordToShow.length === 2) bubble.style.fontSize = '28px';
+            else bubble.style.fontSize = '34px';
+            const screenWidth = window.innerWidth;
+            const minX = 20, maxX = screenWidth - 100;
+            bubble.style.left = Math.floor(Math.random() * (maxX - minX + 1)) + minX + 'px';
+            const config = getLevelConfig(currentLevel);
+            const duration = (Math.random() * (config.speedMax - config.speedMin) + config.speedMin);
+            bubble.style.animationDuration = duration + 's';
+            bubble.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!isGameActive) return;
+                if (bubble.innerText === currentTarget) {
+                    playPopSound();
+                    playPraiseSound();
+                    const rect = bubble.getBoundingClientRect();
+                    createSplashes(rect.left + 45, rect.top + 45);
+                    bubble.remove();
+                    currentScore++;
+                    scoreEl.innerText = currentScore;
+                    speakCheer();
+                    if (currentScore >= POINTS_TO_PASS) levelComplete();
+                    else pickNewTarget();
+                } else {
+                    bubble.classList.add('wrong');
+                    setTimeout(() => bubble.classList.remove('wrong'), 300);
+                }
+            });
+            bubble.addEventListener('animationend', () => { if(bubble.parentNode) bubble.remove(); });
+            document.body.appendChild(bubble);
+        }
+        
+        function levelComplete() {
+            if (!isGameActive) return;
+            isGameActive = false;
+            stopGameLoop();
+            clearAllBubbles();
+            playMagicSound();
+            for(let i=0; i<15; i++) setTimeout(() => createSplashes(window.innerWidth/2 + (Math.random()-0.5)*220, window.innerHeight/2 + (Math.random()-0.5)*180, 8), i*70);
+            if ('speechSynthesis' in window) { const passSpeech = new SpeechSynthesisUtterance("恭喜过关！进入下一关！"); passSpeech.lang = 'zh-CN'; window.speechSynthesis.speak(passSpeech); }
+            document.getElementById('finished-level').innerText = currentLevel;
+            let nextLevel = currentLevel + 1;
+            if(nextLevel > TOTAL_LEVELS) nextLevel = TOTAL_LEVELS;
+            document.getElementById('next-level-display').innerText = nextLevel;
+            if(nextLevelSpan) nextLevelSpan.innerText = nextLevel;
+            levelUpScreen.style.display = 'flex';
+        }
+        
+        function nextLevelConfirmed() {
+            levelUpScreen.style.display = 'none';
+            if (currentLevel < TOTAL_LEVELS) { 
+                currentLevel++; 
+                levelDisplayEl.innerText = currentLevel; 
+                startGameForCurrentLevel(); 
+            } else { 
+                alert("🎉 哇！你完成了全部12关第二阶段测试！ 识字小英雄！ 🎉"); 
+                openMenu(); 
+            }
+        }
+        
+        function restartCurrentLevel() {
+            failScreen.style.display = 'none';
+            currentScore = 0; scoreEl.innerText = currentScore; timeLeft = LEVEL_TIME_LIMIT; timerSecondsSpan.innerText = timeLeft;
+            startGameForCurrentLevel();
+        }
+        
+        function startGameForCurrentLevel() {
+            stopGameLoop(); clearAllBubbles();
+            currentScore = 0; scoreEl.innerText = currentScore; timeLeft = LEVEL_TIME_LIMIT; timerSecondsSpan.innerText = timeLeft;
+            timerSecondsSpan.parentElement.style.background = "#FFE0B2";
+            isGameActive = true;
+            pickNewTarget();
+            const config = getLevelConfig(currentLevel);
+            spawnInterval = setInterval(() => { if(isGameActive) createBubble(); }, config.spawnRate);
+            timerInterval = setInterval(() => {
+                if (!isGameActive) return;
+                if (timeLeft <= 1) {
+                    if (timerInterval) clearInterval(timerInterval);
+                    if (spawnInterval) clearInterval(spawnInterval);
+                    isGameActive = false; clearAllBubbles(); failScreen.style.display = 'flex';
+                } else { 
+                    timeLeft--; 
+                    timerSecondsSpan.innerText = timeLeft; 
+                    timerSecondsSpan.parentElement.style.background = timeLeft <= 10 ? "#FFCCBC" : "#FFE0B2"; 
+                }
+            }, 1000);
+            if (audioCtx && !bgmSchedulerActive && !localStorage.getItem('bgmManuallyOff')) startBackgroundMusic();
+        }
+        
+        function openMenu() {
+            if (isGameActive === true) { isGameActive = false; stopGameLoop(); clearAllBubbles(); }
+            levelUpScreen.style.display = 'none'; failScreen.style.display = 'none'; startScreen.style.display = 'flex'; resumeBtn.style.display = 'block';
+        }
+        
+        function resumeGame() { startScreen.style.display = 'none'; currentScore = 0; scoreEl.innerText = currentScore; timeLeft = LEVEL_TIME_LIMIT; timerSecondsSpan.innerText = timeLeft; startGameForCurrentLevel(); }
+        
+        function initGame(level) {
+            ensureAudioContext(); currentLevel = level; levelDisplayEl.innerText = currentLevel; startScreen.style.display = 'none'; levelUpScreen.style.display = 'none'; failScreen.style.display = 'none'; startGameForCurrentLevel();
+        }
+        
+        function buildLevelMenu() {
+            const container = document.getElementById('level-grid-container'); container.innerHTML = '';
+            for(let i = 1; i <= TOTAL_LEVELS; i++) { 
+                const btn = document.createElement('button'); 
+                btn.innerText = `第${i}关\n⏱️60秒`; 
+                btn.style.whiteSpace = 'pre-line'; 
+                btn.onclick = () => initGame(i); 
+                container.appendChild(btn); 
+            }
+        }
+        buildLevelMenu();
+        
+        function createSplashes(x, y, count = 8) {
+            const symbols = ['💧', '🫧', '✨', '⭐', '🌸', '🎈', '🌟'];
+            for (let i = 0; i < count; i++) { 
+                const splash = document.createElement('div'); 
+                splash.innerText = symbols[Math.floor(Math.random()*symbols.length)]; 
+                splash.classList.add('splash'); 
+                splash.style.left = x + 'px'; 
+                splash.style.top = y + 'px'; 
+                const angle = Math.random() * Math.PI * 2; 
+                const distance = Math.random() * 65 + 30; 
+                splash.style.setProperty('--dx', Math.cos(angle) * distance + 'px'); 
+                splash.style.setProperty('--dy', Math.sin(angle) * distance + 'px'); 
+                document.body.appendChild(splash); 
+                setTimeout(() => splash.remove(), 500); 
+            }
+        }
+        
+        document.body.addEventListener('click', () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }, { once: false });
+        musicToggleBtn.onclick = toggleMusic;
+        
+        window.openMenu = openMenu; window.resumeGame = resumeGame; window.initGame = initGame; window.nextLevelConfirmed = nextLevelConfirmed; window.restartCurrentLevel = restartCurrentLevel;
+        levelDisplayEl.innerText = 1; startScreen.style.display = 'flex'; resumeBtn.style.display = 'block'; isGameActive = false; document.getElementById('next-level-display').innerText = "2";
+        initAudioForAll();
+    </script>
+</body>
+</html>
